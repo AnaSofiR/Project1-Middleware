@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package mom;
+
+service MOMService {
+  rpc PublishToTopic (PublishRequest) returns (StatusResponse);
+  rpc SubscribeToTopic (SubscribeRequest) returns (MessageResponse);
+
+  rpc SendToQueue (QueueRequest) returns (StatusResponse);
+  rpc ReceiveFromQueue (QueueRequest) returns (MessageResponse);
+}
+
+message PublishRequest {
+  string topic = 1;
+  string message = 2;
+  string token = 3;
+}
+
+message SubscribeRequest {
+  string topic = 1;
+  string token = 2;
+}
+
+message QueueRequest {
+  string queue = 1;
+  string message = 2;
+  string token = 3;
+}
+
+message StatusResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message MessageResponse {
+  string message = 1;
+  bool found = 2;
+}
