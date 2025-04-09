@@ -9,6 +9,7 @@
 #include <openssl/sha.h>
 #include <pqxx/pqxx>
 #include <string>
+
 // Incluimos configuraciones y logging del proyecto
 #include "../utils/Config.hpp"
 #include "../utils/Logger.hpp"
