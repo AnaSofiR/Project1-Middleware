@@ -20,8 +20,9 @@ void AuthService::registerUser(const std::string &username,
     pqxx::work txn(*dbConn_);
     // Suponiendo que la tabla de usuarios se llama "users" con columnas
     // "username" y "password"
-    txn.exec_params("INSERT INTO users (username, password) VALUES ($1, $2)",
-                    username, hashedPassword);
+    txn.exec_params(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2)", username,
+        hashedPassword);
     txn.commit();
     logger_.info("Usuario registrado exitosamente: " + username);
   } catch (const std::exception &e) {
@@ -36,7 +37,7 @@ std::string AuthService::loginUser(const std::string &username,
     pqxx::nontransaction ntx(*dbConn_);
     // Obtenemos el hash almacenado en la base de datos
     pqxx::result r = ntx.exec_params(
-        "SELECT password FROM users WHERE username = $1", username);
+        "SELECT password_hash FROM users WHERE username = $1", username);
 
     if (r.empty()) {
       throw std::runtime_error("Usuario no encontrado");
