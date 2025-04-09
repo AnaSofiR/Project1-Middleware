@@ -1,28 +1,41 @@
 // src/auth/AuthService.hpp
-#pragma once
-#include <jwt-cpp/jwt.h>
-#include <pqxx/pqxx> // PostgreSQL C++ client
-#include <string>
 
-struct User {
-  int id;
-  std::string username;
-  std::string password_hash;
-};
+// include/auth/AuthService.hpp
+#ifndef AUTHSERVICE_HPP
+#define AUTHSERVICE_HPP
+
+#include <jwt-cpp/jwt.h>
+#include <memory>
+#include <openssl/sha.h>
+#include <pqxx/pqxx>
+#include <string>
+// Incluimos configuraciones y logging del proyecto
+#include "../utils/Config.hpp"
+#include "../utils/Logger.hpp"
 
 class AuthService {
 public:
-  AuthService(const std::string &db_connection_str);
+  // Constructor: recibe una referencia a la configuración y a la conexión de
+  // base de datos
+  AuthService(const Config &config, std::shared_ptr<pqxx::connection> dbConn);
 
-  bool registerUser(const std::string &username, const std::string &password);
+  // Método para registrar un usuario. Podría lanzar excepciones en caso de
+  // error.
+  void registerUser(const std::string &username, const std::string &password);
+
+  // Método para autenticar un usuario. Devuelve el token JWT en caso de éxito.
   std::string loginUser(const std::string &username,
                         const std::string &password);
-  bool validateToken(const std::string &token);
 
 private:
-  std::string db_connection_str;
-  std::string jwt_secret = "tu_secreto_secreto";
+  Config config_;
+  std::shared_ptr<pqxx::connection> dbConn_;
+  Logger logger_;
 
-  User getUserByUsername(const std::string &username);
+  // Métodos privados auxiliares
   std::string hashPassword(const std::string &password);
+  bool verifyPassword(const std::string &password, const std::string &hashed);
+  std::string generateJWT(const std::string &username);
 };
+
+#endif // AUTHSERVICE_HPP

@@ -1,95 +1,99 @@
 // src/auth/AuthService.cpp
 #include "../../include/auth/AuthService.hpp"
-#include <iomanip>
-#include <openssl/sha.h>
-#include <sstream>
+#include <chrono>
+// Puedes incluir aquí alguna librería para hashing de contraseñas, por ejemplo,
+// bcrypt
 
-AuthService::AuthService(const std::string &db_conn_str)
-    : db_connection_str(db_conn_str) {}
-
-std::string AuthService::hashPassword(const std::string &password) {
-  unsigned char hash[SHA256_DIGEST_LENGTH];
-  SHA256_CTX sha256;
-  SHA256_Init(&sha256);
-  SHA256_Update(&sha256, password.c_str(), password.size());
-  SHA256_Final(hash, &sha256);
-
-  std::stringstream ss;
-  for (unsigned char i : hash) {
-    ss << std::hex << std::setw(2) << std::setfill('0') << (int)i;
-  }
-  return ss.str();
+AuthService::AuthService(const Config &config,
+                         std::shared_ptr<pqxx::connection> dbConn)
+    : config_(config), dbConn_(dbConn), logger_("AuthService") {
+  // Inicialización adicional si es necesaria.
 }
 
-bool AuthService::registerUser(const std::string &username,
+void AuthService::registerUser(const std::string &username,
                                const std::string &password) {
+  // Ejemplo simplificado de hashing (deberías usar una librería robusta para
+  // ello)
+  std::string hashedPassword = hashPassword(password);
+
   try {
-    pqxx::connection conn(db_connection_str);
-    pqxx::work txn(conn);
-
-    std::string hashed_pw = hashPassword(password);
-
-    txn.exec_params(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2)", username,
-        hashed_pw);
+    pqxx::work txn(*dbConn_);
+    // Suponiendo que la tabla de usuarios se llama "users" con columnas
+    // "username" y "password"
+    txn.exec_params("INSERT INTO users (username, password) VALUES ($1, $2)",
+                    username, hashedPassword);
     txn.commit();
-    return true;
-  } catch (const pqxx::unique_violation &e) {
-    // Username ya existe
-    return false;
+    logger_.info("Usuario registrado exitosamente: " + username);
   } catch (const std::exception &e) {
-    // Otros errores
-    return false;
+    logger_.error("Error al registrar usuario: " + std::string(e.what()));
+    throw;
   }
 }
 
 std::string AuthService::loginUser(const std::string &username,
                                    const std::string &password) {
   try {
-    User user = getUserByUsername(username);
-    std::string hashed_input = hashPassword(password);
+    pqxx::nontransaction ntx(*dbConn_);
+    // Obtenemos el hash almacenado en la base de datos
+    pqxx::result r = ntx.exec_params(
+        "SELECT password FROM users WHERE username = $1", username);
 
-    if (user.password_hash == hashed_input) {
-      auto token =
-          jwt::create()
-              .set_issuer("MOM")
-              .set_type("JWS")
-              .set_payload_claim("user_id", jwt::claim(std::to_string(user.id)))
-              .set_payload_claim("username", jwt::claim(user.username))
-              .sign(jwt::algorithm::hs256{jwt_secret});
-
-      return token;
+    if (r.empty()) {
+      throw std::runtime_error("Usuario no encontrado");
     }
-    return "";
-  } catch (...) {
-    return "";
+
+    std::string storedHash = r[0][0].as<std::string>();
+
+    if (!verifyPassword(password, storedHash)) {
+      throw std::runtime_error("Contraseña incorrecta");
+    }
+
+    // Si la autenticación es exitosa, se genera el JWT
+    std::string token = generateJWT(username);
+    logger_.info("Usuario autenticado exitosamente: " + username);
+    return token;
+  } catch (const std::exception &e) {
+    logger_.error("Error al autenticar usuario: " + std::string(e.what()));
+    throw;
   }
 }
 
-User AuthService::getUserByUsername(const std::string &username) {
-  pqxx::connection conn(db_connection_str);
-  pqxx::work txn(conn);
+std::string AuthService::hashPassword(const std::string &password) {
 
-  auto result = txn.exec_params1(
-      "SELECT id, username, password_hash FROM users WHERE username = $1",
-      username);
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  SHA256_CTX sha256;
 
-  User user;
-  user.id = result[0].as<int>();
-  user.username = result[1].as<std::string>();
-  user.password_hash = result[2].as<std::string>();
+  SHA256_Init(&sha256);
+  SHA256_Update(&sha256, password.c_str(), password.size());
+  SHA256_Final(hash, &sha256);
 
-  return user;
+  // Convert hash to hex string
+  std::stringstream ss;
+  for (unsigned char c : hash)
+    ss << std::hex << std::setw(2) << std::setfill('0') << (int)c;
+  return ss.str();
 }
 
-bool AuthService::validateToken(const std::string &token) {
-  try {
-    auto decoded = jwt::decode(token);
-    jwt::verify()
-        .allow_algorithm(jwt::algorithm::hs256{jwt_secret})
-        .verify(decoded);
-    return true;
-  } catch (...) {
-    return false;
-  }
+bool AuthService::verifyPassword(const std::string &password,
+                                 const std::string &hashed) {
+  // Implementa la verificación correspondiente, comparando el hash del password
+  // ingresado con el almacenado.
+  return hashPassword(password) == hashed;
+}
+
+std::string AuthService::generateJWT(const std::string &username) {
+  // Usando jwt-cpp para generar el token
+  auto token = jwt::create()
+                   .set_issuer("mi_api")
+                   .set_type("JWS")
+                   .set_audience("usuarios")
+                   .set_subject(username)
+                   .set_issued_at(std::chrono::system_clock::now())
+                   .set_expires_at(std::chrono::system_clock::now() +
+                                   std::chrono::hours(24))
+                   .sign(jwt::algorithm::hs256{
+                       config_.getJWTSecret()}); // Se asume que Config tiene un
+                                                 // método getJWTSecret()
+
+  return token;
 }
