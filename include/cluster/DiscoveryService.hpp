@@ -2,8 +2,8 @@
 #ifndef DISCOVERY_HPP
 #define DISCOVERY_HPP
 
+#pragma once
 #include <arpa/inet.h>
-#include <cstring>
 #include <iostream>
 #include <netinet/in.h>
 #include <string>
@@ -17,8 +17,12 @@ struct NodeInfo {
   int port;
 };
 
-void startDiscoveryResponder(int listenPort, int responsePort);
-std::vector<NodeInfo> discoverClusterNodes(int discoveryPort,
-                                           int timeoutSecs = 2);
+// Nodo pasivo que responde al descubridor
+void startDiscoveryResponder(int listen_port, int service_port);
 
+// Nodo activo que busca otros
+std::vector<NodeInfo>
+discoverClusterNodes(const std::string &subnet_prefix, // ej: "172.31.96"
+                     int listen_port // puerto donde escuchan los demás
+);
 #endif

@@ -1,94 +1,59 @@
 #include "../../include/cluster/DiscoveryService.hpp"
 
-void startDiscoveryResponder(int listenPort, int responsePort) {
-  std::thread([listenPort, responsePort]() {
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    sockaddr_in addr{};
+void startDiscoveryResponder(int listen_port, int service_port) {
+  std::thread([=]() {
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockaddr_in addr{}, sender{};
     addr.sin_family = AF_INET;
+    addr.sin_port = htons(listen_port);
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(listenPort);
-    bind(sock, (sockaddr *)&addr, sizeof(addr));
 
-    char buffer[256];
-    sockaddr_in senderAddr{};
-    socklen_t senderLen = sizeof(senderAddr);
+    bind(sockfd, (sockaddr *)&addr, sizeof(addr));
 
-    // En startDiscoveryResponder
-    std::cout << "[Responder] Esperando mensajes en el puerto " << listenPort
-              << std::endl;
-
+    char buffer[1024];
+    socklen_t len = sizeof(sender);
     while (true) {
-      int len = recvfrom(sock, buffer, sizeof(buffer), 0,
-                         (sockaddr *)&senderAddr, &senderLen);
-      buffer[len] = '\0';
-
-      std::string msg(buffer);
-      if (msg == "DISCOVER") {
-        // Cuando recibe algo:
-        std::cout << "[Responder] Recibido mensaje de descubrimiento. Enviando "
-                     "respuesta desde puerto "
-                  << responsePort << std::endl;
-
-        std::string response =
-            "I_AM_NODE:127.0.0.1:" + std::to_string(responsePort);
-        sendto(sock, response.c_str(), response.size(), 0,
-               (sockaddr *)&senderAddr, senderLen);
+      ssize_t n = recvfrom(sockfd, buffer, sizeof(buffer), 0,
+                           (sockaddr *)&sender, &len);
+      if (n > 0) {
+        std::string response = std::to_string(service_port);
+        sendto(sockfd, response.c_str(), response.size(), 0,
+               (sockaddr *)&sender, len);
       }
     }
-
-    close(sock);
+    close(sockfd);
   }).detach();
 }
 
-std::vector<NodeInfo> discoverClusterNodes(int discoveryPort, int timeoutSecs) {
+std::vector<NodeInfo> discoverClusterNodes(const std::string &subnet_prefix,
+                                           int listen_port) {
   std::vector<NodeInfo> nodes;
+  int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+  struct timeval tv = {1, 0}; // 1s timeout
+  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-  int sock = socket(AF_INET, SOCK_DGRAM, 0);
-  int broadcastEnable = 1;
-  setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable,
-             sizeof(broadcastEnable));
+  for (int i = 1; i < 255; ++i) {
+    for (int j = 0; j < 255; ++j) {
+      std::string ip =
+          subnet_prefix + "." + std::to_string(i) + "." + std::to_string(j);
+      sockaddr_in target{};
+      target.sin_family = AF_INET;
+      target.sin_port = htons(listen_port);
+      inet_pton(AF_INET, ip.c_str(), &target.sin_addr);
 
-  sockaddr_in broadcastAddr{};
-  broadcastAddr.sin_family = AF_INET;
-  broadcastAddr.sin_port = htons(discoveryPort);
-  broadcastAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+      std::string ping = "DISCOVER";
+      sendto(sockfd, ping.c_str(), ping.size(), 0, (sockaddr *)&target,
+             sizeof(target));
 
-  std::string discoverMsg = "DISCOVER";
-  sendto(sock, discoverMsg.c_str(), discoverMsg.size(), 0,
-         (sockaddr *)&broadcastAddr, sizeof(broadcastAddr));
-
-  // Set timeout for responses
-  timeval timeout{timeoutSecs, 0};
-  setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-
-  sockaddr_in sender{};
-  socklen_t senderLen = sizeof(sender);
-  char buffer[256];
-
-  std::cout << "[Discover] Enviando mensaje de descubrimiento por puerto "
-            << discoveryPort << std::endl;
-
-  while (true) {
-    int len = recvfrom(sock, buffer, sizeof(buffer) - 1, 0, (sockaddr *)&sender,
-                       &senderLen);
-    if (len < 0)
-      break;
-
-    buffer[len] = '\0';
-    std::string msg(buffer);
-
-    if (msg.find("I_AM_NODE") == 0) {
-      std::string ip = inet_ntoa(sender.sin_addr);
-      int port = std::stoi(msg.substr(msg.find_last_of(':') + 1));
-
-      // Después de recibir respuestas
-      std::cout << "[Discover] Nodo descubierto: " << ip << ":" << port
-                << std::endl;
-
-      nodes.push_back({ip, port});
+      char buf[100];
+      socklen_t len = sizeof(target);
+      int n = recvfrom(sockfd, buf, sizeof(buf), 0, (sockaddr *)&target, &len);
+      if (n > 0) {
+        buf[n] = '\0';
+        nodes.push_back({ip, std::stoi(buf)});
+      }
     }
   }
-
-  close(sock);
+  close(sockfd);
   return nodes;
 }
