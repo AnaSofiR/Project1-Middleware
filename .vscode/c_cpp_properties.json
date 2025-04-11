@@ -1,20 +1,28 @@
 {
     "configurations": [
         {
-            "name": "Win32",
+            "name": "",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:/Users/Sofia/Documents/UNIVERSIDAD/7 SEMESTRE/Tópicos Esp. Telemática/Crow/include"
+                "${workspaceFolder}/build/generated",
+                "/usr/local/include",
+                "/home/ana-sofia-rodriguez/vcpkg/installed/x64-linux/include",
+                "/usr/local/include/grpcpp",
+                "/usr/include",
+                "/usr/include/c++/11"
+            ],
+            "libraryPath": [
+                "/usr/local/lib"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "C:\\msys64\\ucrt64\\bin\\gcc.exe",
-            "cStandard": "c17",
-            "cppStandard": "gnu++17",
-            "intelliSenseMode": "windows-gcc-x64"
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
         }
     ],
     "version": 4
