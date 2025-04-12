@@ -3,5 +3,7 @@
 
 class GrpcServer {
 public:
-    void start(int port);
+  GrpcServer();
+
+  void start(int port);
 };

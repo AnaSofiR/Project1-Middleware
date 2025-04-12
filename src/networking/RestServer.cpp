@@ -1,6 +1,8 @@
 #include "../../include/networking/RestServer.hpp"
 
-int main() {
+RestServer::RestServer() {}
+
+void RestServer::start(int port) {
   crow::SimpleApp app;
 
   // Init config and DB connection

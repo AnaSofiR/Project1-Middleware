@@ -6,8 +6,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # 🔗 Usa vcpkg toolchain
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-  set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake"
-      CACHE STRING "Vcpkg toolchain file")
+  set(CMAKE_TOOLCHAIN_FILE "$ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 endif()
 
 # 📦 Requiere Protobuf y gRPC

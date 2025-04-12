@@ -3,7 +3,7 @@
 #include "../include/utils/Logger.hpp"
 #include <iostream>
 
-int main() {
+int test_utils() {
   try {
     // Instancia y prueba del Config
     Config config("src/config.env");

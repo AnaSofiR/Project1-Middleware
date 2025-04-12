@@ -1,6 +1,6 @@
 #pragma once
 
-#include "auth/AuthService.hpp"
+#include "../auth/AuthService.hpp"
 #include "../utils/Config.hpp"
 #include "../utils/Logger.hpp"
 #include "crow.h"
@@ -8,5 +8,7 @@
 
 class RestServer {
 public:
+  RestServer();
+
   void start(int port);
 };
