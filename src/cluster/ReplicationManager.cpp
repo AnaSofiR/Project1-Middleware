@@ -60,3 +60,31 @@ void ReplicationManager::sendToPeer(const std::string &address,
     }
   }
 }
+
+void ReplicationManager::replicateToPeers(const std::string& topic, const std::string& message) {
+  for (const std::string& peer : peerAddresses) {
+      try {
+          auto channel = grpc::CreateChannel(peer, grpc::InsecureChannelCredentials());
+          auto stub = replication::ReplicationService::NewStub(channel);
+
+          replication::TopicMessage req;
+          req.set_topic(topic);
+          req.set_message(message);
+
+          grpc::ClientContext context;
+          replication::Ack ack;
+
+          grpc::Status status = stub->ReplicateTopic(&context, req, &ack);
+
+          if (status.ok() && ack.success()) {
+              std::cout << "[REPLICADO] Enviado a " << peer << std::endl;
+          } else {
+              std::cerr << "[ERROR] Fallo al enviar a " << peer << ": " << status.error_message() << std::endl;
+          }
+      } catch (const std::exception& e) {
+          std::cerr << "[EXCEPCIÓN] Enviando a " << peer << ": " << e.what() << std::endl;
+      }
+  }
+}
+
+

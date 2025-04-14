@@ -1,6 +1,5 @@
-
-#ifndef CONFIG_HPP
-#define CONFIG_HPP
+// include/utils/Config.hpp
+#pragma once
 
 #include <string>
 #include <unordered_map>
@@ -17,5 +16,3 @@ private:
   std::unordered_map<std::string, std::string> configMap_;
   void loadConfig(const std::string &filepath);
 };
-
-#endif // CONFIG_HPP

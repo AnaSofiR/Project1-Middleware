@@ -13,6 +13,8 @@ using grpc::Status;
 
 FailoverManager::FailoverManager(const std::vector<std::string> &peers)
     : peerAddresses(peers), running(true) {
+  currentLeader = calculateLeader();
+  std::cout << "[Failover] Líder inicial: " << currentLeader << std::endl;
   for (const auto &addr : peerAddresses) {
     failureCounts[addr] = 0;
     peerStatus[addr] = true;
@@ -25,29 +27,36 @@ void FailoverManager::startMonitoring() {
 }
 
 void FailoverManager::monitorLoop() {
-  const int retryThreshold = 3;
+    const int retryThreshold = 3;
 
-  while (running) {
-    for (const auto &addr : peerAddresses) {
-      bool alive = pingPeer(addr);
+    while (running) {
+        for (const auto& addr : peerAddresses) {
+            bool alive = pingPeer(addr);
 
-      if (!alive) {
-        failureCounts[addr]++;
-        if (peerStatus[addr] && failureCounts[addr] >= retryThreshold) {
-          peerStatus[addr] = false;
-          std::cerr << "[Failover] Nodo caído: " << addr << std::endl;
-          // Aquí podrías disparar lógica de redistribución
+            std::lock_guard<std::mutex> lock(statusMutex);
+            if (!alive) {
+                failureCounts[addr]++;
+                if (peerStatus[addr] && failureCounts[addr] >= retryThreshold) {
+                    peerStatus[addr] = false;
+                    std::cerr << "[Failover] Nodo caído: " << addr << std::endl;
+                }
+            } else {
+                if (!peerStatus[addr]) {
+                    std::cout << "[Failover] Nodo recuperado: " << addr << std::endl;
+                }
+                failureCounts[addr] = 0;
+                peerStatus[addr] = true;
+            }
         }
-      } else {
-        if (!peerStatus[addr]) {
-          std::cout << "[Failover] Nodo recuperado: " << addr << std::endl;
+
+        std::string newLeader = calculateLeader();
+        if (newLeader != currentLeader) {
+            currentLeader = newLeader;
+            onLeaderChange(currentLeader);
         }
-        failureCounts[addr] = 0;
-        peerStatus[addr] = true;
-      }
+
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
-    std::this_thread::sleep_for(std::chrono::seconds(5)); // Espera entre pings
-  }
 }
 
 // Simulación de ping (a futuro puedes implementar un método real como
@@ -60,4 +69,22 @@ bool FailoverManager::pingPeer(const std::string &address) {
   // canal.
   return channel->WaitForConnected(std::chrono::system_clock::now() +
                                    std::chrono::seconds(1));
+}
+
+
+std::string FailoverManager::calculateLeader() {
+    std::string leader = "zzzzzz";
+    for (const auto& [addr, alive] : peerStatus) {
+        if (alive && addr < leader) {
+            leader = addr;
+        }
+    }
+    return leader;
+}
+
+void FailoverManager::onLeaderChange(const std::string& newLeader) {
+    std::cout << "[Failover] Nuevo líder: " << newLeader << std::endl;
+
+    // Aquí podrías notificar a otros componentes (como TopicManager)
+    // o hacer una sincronización si eres un nodo que se reincorpora
 }

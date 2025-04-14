@@ -1,9 +1,14 @@
 #pragma once
 #include <string>
+#include "../cluster/ReplicationManager.hpp"
+
 
 class GrpcServer {
 public:
-  GrpcServer();
+    GrpcServer();
+    void start(int port);
+    void setReplicationManager(std::shared_ptr<ReplicationManager> repl);
 
-  void start(int port);
+private:
+    std::shared_ptr<ReplicationManager> replicationManager_;
 };
