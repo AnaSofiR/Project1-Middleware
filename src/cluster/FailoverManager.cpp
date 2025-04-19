@@ -8,22 +8,28 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
 
-// Simulamos un ping llamando a un método vacío en un servicio básico.
-// Puedes extenderlo para usar un servicio como `HealthCheckService`.
+FailoverManager::FailoverManager(const std::string& self, const std::vector<std::string>& peers)
+    : selfAddress(self), peerAddresses(peers), running(true) {
 
-FailoverManager::FailoverManager(const std::vector<std::string> &peers)
-    : peerAddresses(peers), running(true) {
-  currentLeader = calculateLeader();
-  std::cout << "[Failover] Líder inicial: " << currentLeader << std::endl;
-  for (const auto &addr : peerAddresses) {
-    failureCounts[addr] = 0;
-    peerStatus[addr] = true;
-  }
+    peerStatus[selfAddress] = true;
+    failureCounts[selfAddress] = 0;
+
+    for (const auto &addr : peerAddresses) {
+        failureCounts[addr] = 0;
+        peerStatus[addr] = true;
+    }
+
+    currentLeader = calculateLeader();
+    std::cout << "[Failover] Líder inicial: " << currentLeader << std::endl;
 }
 
 void FailoverManager::startMonitoring() {
-  std::thread monitor(&FailoverManager::monitorLoop, this);
-  monitor.detach(); // Corre en segundo plano
+    std::thread monitor(&FailoverManager::monitorLoop, this);
+    monitor.detach(); 
+}
+
+void FailoverManager::stopMonitoring() {
+    running = false;
 }
 
 void FailoverManager::monitorLoop() {
@@ -34,15 +40,17 @@ void FailoverManager::monitorLoop() {
             bool alive = pingPeer(addr);
 
             std::lock_guard<std::mutex> lock(statusMutex);
+
             if (!alive) {
                 failureCounts[addr]++;
                 if (peerStatus[addr] && failureCounts[addr] >= retryThreshold) {
                     peerStatus[addr] = false;
-                    std::cerr << "[Failover] Nodo caído: " << addr << std::endl;
+                    std::cerr << "[Failover] Nodo marcado como caído: " << addr << std::endl;
                 }
             } else {
                 if (!peerStatus[addr]) {
                     std::cout << "[Failover] Nodo recuperado: " << addr << std::endl;
+                    syncRecoveredPeer(addr);
                 }
                 failureCounts[addr] = 0;
                 peerStatus[addr] = true;
@@ -59,32 +67,68 @@ void FailoverManager::monitorLoop() {
     }
 }
 
-// Simulación de ping (a futuro puedes implementar un método real como
-// HealthCheck en gRPC)
 bool FailoverManager::pingPeer(const std::string &address) {
-  auto channel =
-      grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
+    std::cout << "[Failover] 🔄 Intentando conectar con " << address << std::endl;
+    auto channel = grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
 
-  // Aquí podrías hacer un real gRPC ping, por ahora solo intentamos crear el
-  // canal.
-  return channel->WaitForConnected(std::chrono::system_clock::now() +
-                                   std::chrono::seconds(1));
+    auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(3);
+    bool connected = channel->WaitForConnected(deadline);
+
+    if (connected) {
+        std::cout << "[Failover] ✅ Conectado con " << address << std::endl;
+    } else {
+        std::cerr << "[Failover] ❌ No se pudo conectar con " << address << std::endl;
+    }
+
+    return connected;
 }
 
-
 std::string FailoverManager::calculateLeader() {
-    std::string leader = "zzzzzz";
+    std::string leader;
+
     for (const auto& [addr, alive] : peerStatus) {
-        if (alive && addr < leader) {
+        if (alive && (leader.empty() || addr < leader)) {
             leader = addr;
         }
     }
+
+    std::cout << "[Failover] 🔍 Candidato a líder: " << (leader.empty() ? "Ninguno" : leader) << std::endl;
     return leader;
 }
 
 void FailoverManager::onLeaderChange(const std::string& newLeader) {
-    std::cout << "[Failover] Nuevo líder: " << newLeader << std::endl;
+    std::cout << "[Failover] 👑 Nuevo líder elegido: " << newLeader << std::endl;
+}
 
-    // Aquí podrías notificar a otros componentes (como TopicManager)
-    // o hacer una sincronización si eres un nodo que se reincorpora
+void FailoverManager::setTopicManager(std::shared_ptr<TopicManager> topicMgr) {
+    topicManager_ = topicMgr;
+}
+
+void FailoverManager::setQueueManager(std::shared_ptr<QueueManager> queueMgr) {
+    queueManager_ = queueMgr;
+}
+
+void FailoverManager::syncRecoveredPeer(const std::string& peer) {
+    std::cout << "[SYNC] 🔄 Intentando sincronizar con " << peer << std::endl;
+
+    auto channel = grpc::CreateChannel(peer, grpc::InsecureChannelCredentials());
+    auto stub = replication::ReplicationService::NewStub(channel);
+
+    grpc::ClientContext context;
+    google::protobuf::Empty request;
+    replication::SystemState response;
+
+    grpc::Status status = stub->SyncState(&context, request, &response);
+    if (status.ok()) {
+        if (response.topicmessages_size() == 0 && response.queuemessages_size() == 0){
+            std::cout << "[SYNC] No hay datos que sincornizar desde" << peer << std::endl;
+        } else {
+            if (topicManager_) topicManager_->applyState(response);
+            if (queueManager_) queueManager_->applyState(response);
+            std::cout << "[SYNC] ✅ Nodo sincronizado desde " << peer << std::endl;
+        }
+    } else {
+        std::cerr << "[SYNC] ❌ Error al sincronizar con " << peer
+                  << ": " << status.error_message() << std::endl;
+    }
 }

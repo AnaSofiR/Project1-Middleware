@@ -1,11 +1,12 @@
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 
 package replication;
 
 service ReplicationService {
   rpc ReplicateTopic (TopicMessage) returns (Ack);
   rpc ReplicateQueueMessage (QueueMessage) returns (Ack);
-  rpc SyncState(Empty) returns (SystemState);
+  rpc SyncState(google.protobuf.Empty) returns (SystemState);
 }
 
 message TopicMessage {
@@ -25,6 +26,17 @@ message Ack {
 message SystemState {
   repeated string topics = 1;
   repeated string queues = 2;
-  repeated TopicMessages topicMessages = 3;
-  repeated QueueMessages queueMessages = 4;
+
+  message TopicData {
+    string topic = 1;
+    repeated string messages = 2;
+  }
+
+  message QueueData {
+    string queue = 1;
+    repeated string messages = 2;
+  }
+
+  repeated TopicData topicMessages = 3;
+  repeated QueueData queueMessages = 4;
 }

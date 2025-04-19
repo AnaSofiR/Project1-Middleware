@@ -1,4 +1,5 @@
 #include "../../include/core/QueueManager.hpp"
+#include "../../build/generated/replication.pb.h"
 #include <iostream>
 
 bool QueueManager::createQueue(const std::string &queue,
@@ -66,6 +67,21 @@ bool QueueManager::enqueueMessage(const std::string &queue,
   return true;
 }
 
+std::vector<std::string> QueueManager::getMessages(const std::string& queue) {
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  std::vector<std::string> messages;
+  auto it = queueMessages.find(queue);
+  if (it != queueMessages.end()) {
+      std::queue<std::string> copy = it->second;  // Hacemos una copia
+      while (!copy.empty()) {
+          messages.push_back(copy.front());
+          copy.pop();
+      }
+  }
+  return messages;
+} 
+
 std::string QueueManager::dequeueMessage(const std::string &queue) {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -83,4 +99,20 @@ std::string QueueManager::dequeueMessage(const std::string &queue) {
   queueMessages[queue].pop();
   std::cout << "[QueueManager] Mensaje desencolado de '" << queue << "'.\n";
   return msg;
+}
+
+void QueueManager::applyState(const replication::SystemState& state) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+     if (state.queuemessages_size() == 0) {
+        std::cout << "[SYNC] No hay colas para sincronizar." << std::endl;
+        return;
+    }
+
+    for (const auto& queueMsg : state.queuemessages()) {
+        const std::string& queue = queueMsg.queue();
+        for (const auto& message : queueMsg.messages()) {
+            queueMessages[queue].push(message);
+        }
+    }
 }

@@ -5,8 +5,14 @@
 
 GrpcServer::GrpcServer() {}
 
-void GrpcServer::setReplicationManager(std::shared_ptr<ReplicationManager> repl) {
+void GrpcServer::setReplicationManager(
+    std::shared_ptr<ReplicationManager> repl,
+    std::shared_ptr<TopicManager> topic,
+    std::shared_ptr<QueueManager> queue
+) {
     replicationManager_ = repl;
+    topicManager_ = topic;
+    queueManager_ = queue;
 }
 
 void GrpcServer::start(int port) {
@@ -15,14 +21,13 @@ void GrpcServer::start(int port) {
 
     builder.AddListeningPort(address, grpc::InsecureServerCredentials());
 
-    // ✅ REGISTRA EL SERVICIO GPRC
-    auto service = std::make_unique<ReplicationServiceImpl>(replicationManager_);
-    builder.RegisterService(service.get());
+    // ✅ Crear y guardar la instancia
+    replicationService_ = std::make_unique<ReplicationServiceImpl>(
+        replicationManager_, topicManager_, queueManager_);
+    builder.RegisterService(replicationService_.get());
 
-
-    std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
-    
     std::cout << "[gRPC] Servidor escuchando en " << address << std::endl;
 
+    std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
     server->Wait();
 }

@@ -4,6 +4,8 @@
 #include <unordered_set>
 #include <vector>
 #include <mutex>
+#include "../../build/generated/replication.pb.h"
+
 
 class TopicManager {
 public:
@@ -12,6 +14,7 @@ public:
     std::vector<std::string> listTopics();
     bool publishMessage(const std::string& topic, const std::string& message);
     std::vector<std::string> consumeMessages(const std::string& topic);
+    void applyState(const replication::SystemState& state);
 
 private:
     std::unordered_map<std::string, std::string> topicOwners;
