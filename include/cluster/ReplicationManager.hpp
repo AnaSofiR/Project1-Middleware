@@ -8,7 +8,6 @@ public:
 
     void replicateTopic(const std::string& topic, const std::string& message);
     void replicateQueue(const std::string& queue, const std::string& message);
-    void replicateToPeers(const std::string& topic, const std::string& message);
 
 private:
     std::vector<std::string> peerAddresses;

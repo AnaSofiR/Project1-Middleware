@@ -15,7 +15,7 @@ public:
                            std::shared_ptr<TopicManager> topicManager,
                            std::shared_ptr<QueueManager> queueManager);
 
-    grpc::Status ReplicateTopic(grpc::ServerContext* context,
+    grpc::Status ReplicateTopicMessage(grpc::ServerContext* context,
                                 const replication::TopicMessage* request,
                                 replication::Ack* response) override;
 

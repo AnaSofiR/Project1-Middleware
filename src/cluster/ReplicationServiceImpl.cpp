@@ -7,16 +7,26 @@ std::shared_ptr<QueueManager> queueManager)
       topicManager_(topicManager),
       queueManager_(queueManager) {}
 
-grpc::Status ReplicationServiceImpl::ReplicateTopic(
+grpc::Status ReplicationServiceImpl::ReplicateTopicMessage(
     grpc::ServerContext* context,
     const replication::TopicMessage* request,
     replication::Ack* response
 ) {
-    std::cout << "[RECEPCIÓN] Replica recibida del tópico "
-              << request->topic() << ": " << request->message() << std::endl;
 
-    response->set_success(true);
-    return grpc::Status::OK;
+    std::string topic = request->topic();
+    std::string message = request->message();
+
+    std::cout << "[RECEPCIÓN] Replica recibida del tópico "
+              << topic << ": " << message << std::endl;
+
+    if (topicManager_){
+        topicManager_->publishMessage(topic, message);
+        response->set_success(true);
+        return grpc::Status::OK;
+    }
+
+    response->set_success(false);
+    return grpc::Status(grpc::StatusCode::INTERNAL, "TopicManager no disponible");
 }
 
 grpc::Status ReplicationServiceImpl::ReplicateQueueMessage(
@@ -24,7 +34,19 @@ grpc::Status ReplicationServiceImpl::ReplicateQueueMessage(
     const replication::QueueMessage* request,
     replication::Ack* response
 ) {
-    return grpc::Status::OK;
+    std::string queue = request->queue();
+    std::string message = request->message();
+
+    std::cout << "[RECEPCIÓN] Replica recibida de la cola: " << queue << " : " << message << std::endl;
+
+    if (queueManager_) {
+        queueManager_->enqueueMessage(queue, message);
+        response->set_success(true);
+        return grpc::Status::OK;
+    }
+
+    response->set_success(false);
+    return grpc::Status(grpc::StatusCode::INTERNAL, "QueueManager no disponible");
 }
 
 grpc::Status ReplicationServiceImpl::SyncState(

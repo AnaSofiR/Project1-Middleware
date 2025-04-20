@@ -4,7 +4,7 @@ import "google/protobuf/empty.proto";
 package replication;
 
 service ReplicationService {
-  rpc ReplicateTopic (TopicMessage) returns (Ack);
+  rpc ReplicateTopicMessage (TopicMessage) returns (Ack);
   rpc ReplicateQueueMessage (QueueMessage) returns (Ack);
   rpc SyncState(google.protobuf.Empty) returns (SystemState);
 }
