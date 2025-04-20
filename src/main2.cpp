@@ -43,7 +43,8 @@ int main(int argc, char **argv) {
   std::shared_ptr<ReplicationManager> replManager =
       std::make_shared<ReplicationManager>(peers);
 
-  std::string selfAddress = "localhost:" + std::to_string(grpcPort);
+  std::string selfAddress =
+      getLocalIPAddress() + ":" + std::to_string(grpcPort);
   auto failoverManager = std::make_shared<FailoverManager>(selfAddress, peers);
 
   failoverManager->setTopicManager(topicManager);
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
   std::cout << "REST escuchando en puerto: " << restPort << std::endl;
 
   RestServer rest;
-  rest.setReplicationManager(replManager);
+  // rest.setReplicationManager(replManager);
 
   std::thread restThread([&]() { rest.start(restPort); });
 
