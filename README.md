@@ -175,4 +175,12 @@ Examples:
 ````bash
 ./mom 50051 8080 peer1:50051 peer2:50052 --host 6000 --announce 192.168.1.100
 ````
+## Explore Project Resources
 
+📖 **Project Documentation**  
+Visit our [Project Wiki](https://github.com/AnaSofiR/Project1-Middleware/wiki) for detailed guides, architecture diagrams, and usage examples.  
+*"Understand system design decisions and implementation specifics through our comprehensive documentation."*
+
+🗂️ **Development Progress**  
+Track features and priorities in our [Project Backlog](https://github.com/users/AnaSofiR/projects/10).  
+*"See what's being worked on, upcoming enhancements, and contribute to feature prioritization."*
