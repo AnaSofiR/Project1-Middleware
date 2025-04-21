@@ -142,6 +142,49 @@ void RestServer::start(int port) {
           return crow::response(500, e.what());
         }
       });
+      // Create queue endpoint
+    CROW_ROUTE(app, "/createQueue").methods("POST"_method)([](const crow::request& req){
+      auto body = crow::json::load(req.body);
+
+      // Validación del cuerpo de la solicitud
+      if (!body || body["queue_name"].t() != crow::json::type::String || body["user"].t() != crow::json::type::String) {
+          return crow::response(400, "Invalid request body. 'queue_name' and 'user' are required.");
+      }
+
+      std::string queue_name = body["queue_name"].s();
+      std::string user = body["user"].s();
+
+      // Lógica para crear la cola usando QueueManager
+      QueueManager queueManager;  // Asegúrate de que esto esté correctamente inicializado.
+      if (queueManager.createQueue(queue_name, user)) {
+          return crow::response(200, "Queue created successfully.");
+      } else {
+          return crow::response(400, "Queue already exists.");
+      }
+    });
+
+
+  // create topic endpoint
+    CROW_ROUTE(app, "/createTopic").methods("POST"_method)([](const crow::request& req){
+      auto body = crow::json::load(req.body);
+      
+      // Validación del cuerpo de la solicitud
+      if (!body || body["topic_name"].t() != crow::json::type::String || body["user"].t() != crow::json::type::String) {
+          return crow::response(400, "Invalid request body. 'topic_name' and 'user' are required.");
+      }
+
+      std::string topic_name = body["topic_name"].s();
+      std::string user = body["user"].s();
+
+      // Lógica para crear el tópico usando TopicManager
+      TopicManager topicManager;  // Debes asegurarte de que esto esté correctamente inicializado.
+      if (topicManager.createTopic(topic_name, user)) {
+          return crow::response(200, "Topic created successfully.");
+      } else {
+          return crow::response(400, "Topic already exists.");
+      }
+    });
+
 
   app.port(8080).multithreaded().run();
 }
