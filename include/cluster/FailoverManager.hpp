@@ -22,7 +22,7 @@ public:
 
   void syncRecoveredPeer(const std::string &peer);
 
-  void addPeerAddress(const std::string &address);
+  void addPeerAddress(const std::string &message);
   void setTopicManager(std::shared_ptr<TopicManager> topicMgr);
   void setQueueManager(std::shared_ptr<QueueManager> queueMgr);
 
@@ -31,6 +31,7 @@ private:
   std::vector<std::string> peerAddresses;
   std::unordered_map<std::string, int> failureCounts;
   std::unordered_map<std::string, bool> peerStatus;
+  std::map<std::string, std::chrono::system_clock::time_point> joinTimestamps;
   std::string currentLeader;
   std::mutex statusMutex;
 
