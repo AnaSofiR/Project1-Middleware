@@ -142,7 +142,7 @@ DB_CONNECTION=postgresql://ubuntu:+Juanz2314@localhost:5432/testDatabase
 ### Install PostgreSQL:
 PostgreSQL installation provides the database backend required for the MOM system to store user credentials and queue metadata.
 ```bash
-sudo apt update && sudo apt install -y postgresql
+sudo apt update && sudo apt install -y postgresql libpqxx-dev libpq-dev
 ```
 
 ### Create PostgreSQL user and database:
