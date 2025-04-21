@@ -4,6 +4,9 @@ src/config.env
 # Ignorar directorio de compilación
 build/
 
+# Ignorar binarios
+*.[!a-zA-Z]*
+
 # Ignorar archivos de variables de entorno 
 *.env
 

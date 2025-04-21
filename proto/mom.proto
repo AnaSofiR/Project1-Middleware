@@ -3,30 +3,59 @@ syntax = "proto3";
 package mom;
 
 service MOMService {
-  rpc PublishToTopic (PublishRequest) returns (StatusResponse);
-  rpc SubscribeToTopic (SubscribeRequest) returns (MessageResponse);
+  // --- Autenticación ---
+  rpc Register (RegisterRequest) returns (StatusResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
 
-  rpc SendToQueue (QueueRequest) returns (StatusResponse);
-  rpc ReceiveFromQueue (QueueRequest) returns (MessageResponse);
+  // --- Tópicos ---
+  rpc CreateTopic (ChannelRequest) returns (StatusResponse);
+  rpc DeleteTopic (ChannelRequest) returns (StatusResponse);
+  rpc ListTopics (AuthRequest) returns (ChannelListResponse);
+  rpc PublishToTopic (MessageRequest) returns (StatusResponse);
+  rpc SubscribeToTopic (ChannelRequest) returns (MessageListResponse);
+
+  // --- Colas ---
+  rpc CreateQueue (ChannelRequest) returns (StatusResponse);
+  rpc DeleteQueue (ChannelRequest) returns (StatusResponse);
+  rpc ListQueues (AuthRequest) returns (ChannelListResponse);
+  rpc SendToQueue (MessageRequest) returns (StatusResponse);
+  rpc ReceiveFromQueue (ChannelRequest) returns (MessageResponse);
 }
 
-message PublishRequest {
-  string topic = 1;
-  string message = 2;
-  string token = 3;
+// --- Autenticación ---
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
 }
 
-message SubscribeRequest {
-  string topic = 1;
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
   string token = 2;
+  string message = 3;
 }
 
-message QueueRequest {
-  string queue = 1;
-  string message = 2;
+// --- Solicitudes básicas ---
+message AuthRequest {
+  string token = 1;
+}
+
+message ChannelRequest {
+  string name = 1;   // nombre del tópico o cola
+  string token = 2;  // usuario autenticado
+}
+
+message MessageRequest {
+  string name = 1;       // nombre del tópico o cola
+  string message = 2;    // contenido del mensaje
   string token = 3;
 }
 
+// --- Respuestas ---
 message StatusResponse {
   bool success = 1;
   string message = 2;
@@ -35,4 +64,13 @@ message StatusResponse {
 message MessageResponse {
   string message = 1;
   bool found = 2;
+}
+
+message MessageListResponse {
+  repeated string messages = 1;
+  bool found = 2;
+}
+
+message ChannelListResponse {
+  repeated string names = 1;
 }

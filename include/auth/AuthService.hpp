@@ -1,8 +1,5 @@
-// src/auth/AuthService.hpp
-
 // include/auth/AuthService.hpp
-#ifndef AUTHSERVICE_HPP
-#define AUTHSERVICE_HPP
+#pragma once
 
 #include <jwt-cpp/jwt.h>
 #include <memory>
@@ -16,17 +13,14 @@
 
 class AuthService {
 public:
-  // Constructor: recibe una referencia a la configuración y a la conexión de
-  // base de datos
+  // Constructor: recibe una referencia a la configuración y a la conexión de base de datos
   AuthService(const Config &config, std::shared_ptr<pqxx::connection> dbConn);
 
-  // Método para registrar un usuario. Podría lanzar excepciones en caso de
-  // error.
+  // Método para registrar un usuario. Podría lanzar excepciones en caso de error.
   void registerUser(const std::string &username, const std::string &password);
 
   // Método para autenticar un usuario. Devuelve el token JWT en caso de éxito.
-  std::string loginUser(const std::string &username,
-                        const std::string &password);
+  std::string loginUser(const std::string &username, const std::string &password);
 
 private:
   Config config_;
@@ -38,5 +32,3 @@ private:
   bool verifyPassword(const std::string &password, const std::string &hashed);
   std::string generateJWT(const std::string &username);
 };
-
-#endif // AUTHSERVICE_HPP

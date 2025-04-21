@@ -1,6 +1,5 @@
-
-#ifndef LOGGER_HPP
-#define LOGGER_HPP
+// include/utils/Logger.hpp
+#pragma once
 
 #include <mutex>
 #include <string>
@@ -25,5 +24,3 @@ private:
   void log(LogLevel msgLevel, const std::string &message);
   std::string levelToString(LogLevel level);
 };
-
-#endif // LOGGER_HPP

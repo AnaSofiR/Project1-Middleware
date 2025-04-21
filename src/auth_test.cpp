@@ -1,7 +1,7 @@
 #include "../include/auth/AuthService.hpp"
 #include <iostream>
 
-int main() {
+int test_auth() {
   try {
     // Cargamos config desde .env
     Config config("src/config.env");
