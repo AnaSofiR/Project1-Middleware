@@ -133,18 +133,20 @@ Before running the project, follow these steps:
 
 You must create a file named `src/config.env` containing the environment variables required for the database connection and JWT secret. Here is an example:
 
+This file provides the database connection string and JWT secret - essential for the binary to authenticate with PostgreSQL and secure API endpoints.
 ```env
 # File: src/config.env
 JWT_SECRET=ncodinvpdinpqo84h3n0
 DB_CONNECTION=postgresql://ubuntu:+Juanz2314@localhost:5432/testDatabase
 ```
 ### Install PostgreSQL:
+PostgreSQL installation provides the database backend required for the MOM system to store user credentials and queue metadata.
 ```bash
 sudo apt update && sudo apt install -y postgresql
 ```
 
 ### Create PostgreSQL user and database:
-
+Creates a privileged database user and schema to allow the binary to manage authentication and persist system data through PostgreSQL.
 ````bash
 
 sudo -u postgres psql -c "CREATE USER ubuntu WITH PASSWORD '+Juanz2314';"
@@ -157,7 +159,7 @@ sudo -u postgres psql -d testDatabase -c "CREATE TABLE users (id SERIAL PRIMARY 
 ````
 
 ### Configure PostgreSQL authentication:
-
+Modifies authentication from peer-to-password method, enabling the binary to connect using the provided credentials in DB_CONNECTION.
 ````bash
 sudo -sed -i 's/^local\s\+all\s\+all\s\+peer/local all all md5/' /etc/postgresql/*/main/pg_hba.conf
 sudo systemctl restart postgresql
@@ -168,9 +170,9 @@ Execute the compiled binary with the required parameters. Basic usage:
 ````bash
 ./mom <grpc_port> [rest_port] [peer1] [peer2] ... [--host <port>] [--announce <host_ip>]
 ````
-
+The binary connects to PostgreSQL using the configured credentials, while parameters define network interfaces and cluster peers for distributed operations.
 Examples:
 ````bash
-./mom 50051 8080 peer1:50051 peer2:50052 --host 192.168.1.100 --announce 192.168.1.100
+./mom 50051 8080 peer1:50051 peer2:50052 --host 6000 --announce 192.168.1.100
 ````
 
