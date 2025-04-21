@@ -1,5 +1,8 @@
-// src/discovery/NodeAnnouncer.cpp
+
 #include "../../include/cluster/NodeAnnouncer.hpp"
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
 void announceToHost(const std::string &hostIp, int port) {
   int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -20,8 +23,17 @@ void announceToHost(const std::string &hostIp, int port) {
   }
 
   std::string ip = getLocalIPAddress();
-  send(sock, ip.c_str(), ip.length(), 0);
-  std::cout << "[Announcer] Enviada IP al host: " << ip << std::endl;
+  int grpcPort = 55001; // fijo
 
+  // Obtener hora actual en formato ISO8601
+  auto t = std::time(nullptr);
+  std::ostringstream timestamp;
+  timestamp << std::put_time(std::gmtime(&t), "%FT%TZ");
+
+  std::string message =
+      ip + ":" + std::to_string(grpcPort) + "|" + timestamp.str();
+  send(sock, message.c_str(), message.length(), 0);
+
+  std::cout << "[Announcer] Nodo anunciado al host: " << message << std::endl;
   close(sock);
 }

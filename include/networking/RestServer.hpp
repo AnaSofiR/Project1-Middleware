@@ -20,7 +20,7 @@ public:
 
 private:
     std::shared_ptr<ReplicationManager> replicationManager_;
-    std::shared_ptr<QueueManager> queueManager_;
     std::shared_ptr<TopicManager> topicManager_;
+    std::shared_ptr<QueueManager> queueManager_;
     std::shared_ptr<MessageHandler> messageHandler_;
 };

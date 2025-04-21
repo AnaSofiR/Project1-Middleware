@@ -2,7 +2,11 @@
 #include "../../include/core/MessageHandler.hpp"
 #include <iostream>
 
-RestServer::RestServer() {}
+RestServer::RestServer() {
+
+  topicManager_ = std::make_shared<TopicManager>();
+  queueManager_ = std::make_shared<QueueManager>();
+}
 
 void RestServer::setReplicationManager(std::shared_ptr<ReplicationManager> repl) {
  
@@ -19,13 +23,13 @@ void RestServer::start(int port) {
       std::make_shared<pqxx::connection>(config.getDBConnectionString());
   AuthService authService(config, dbConn);
 
-  TopicManager topicManager;
-  QueueManager queueManager;
+  auto& topicManager = *topicManager_;
+  auto& queueManager = *queueManager_;
 
   std::vector<std::string> peers;
   ReplicationManager replicationManager(peers);
  
-  MessageHandler messageHandler(topicManager, queueManager, replicationManager);
+  MessageHandler messageHandler(*topicManager_, *queueManager_, *replicationManager_);
 
   CROW_ROUTE(app, "/register")
       .methods("POST"_method)([&authService](const crow::request &req) {
@@ -142,9 +146,9 @@ void RestServer::start(int port) {
             return crow::response(500, e.what());
         }
       });
-      
+
       // Create queue endpoint
-    CROW_ROUTE(app, "/createQueue").methods("POST"_method)([](const crow::request& req){
+    CROW_ROUTE(app, "/createQueue").methods("POST"_method)([&queueManager](const crow::request& req){
       auto body = crow::json::load(req.body);
 
       // Validación del cuerpo de la solicitud
@@ -155,8 +159,6 @@ void RestServer::start(int port) {
       std::string queue_name = body["queue_name"].s();
       std::string user = body["user"].s();
 
-      // Lógica para crear la cola usando QueueManager
-      QueueManager queueManager;  // Asegúrate de que esto esté correctamente inicializado.
       if (queueManager.createQueue(queue_name, user)) {
           return crow::response(200, "Queue created successfully.");
       } else {
@@ -166,7 +168,7 @@ void RestServer::start(int port) {
 
 
   // create topic endpoint
-    CROW_ROUTE(app, "/createTopic").methods("POST"_method)([](const crow::request& req){
+    CROW_ROUTE(app, "/createTopic").methods("POST"_method)([&topicManager](const crow::request& req){
       auto body = crow::json::load(req.body);
       
       // Validación del cuerpo de la solicitud
@@ -177,14 +179,60 @@ void RestServer::start(int port) {
       std::string topic_name = body["topic_name"].s();
       std::string user = body["user"].s();
 
-      // Lógica para crear el tópico usando TopicManager
-      TopicManager topicManager;  // Debes asegurarte de que esto esté correctamente inicializado.
       if (topicManager.createTopic(topic_name, user)) {
           return crow::response(200, "Topic created successfully.");
       } else {
           return crow::response(400, "Topic already exists.");
       }
     });
+
+    //delete topic endpoint
+  CROW_ROUTE(app, "/deleteTopic").methods("POST"_method)([&topicManager](const crow::request& req){
+    auto body = crow::json::load(req.body);
+
+    if (!body || body["topic_name"].t() != crow::json::type::String || body["user"].t() != crow::json::type::String) {
+        return crow::response(400, "Invalid request body. 'topic_name' and 'user' are required.");
+    }
+
+    std::string topic_name = body["topic_name"].s();
+    std::string user = body["user"].s();
+
+    if (topicManager.deleteTopic(topic_name, user)) {
+        return crow::response(200, "Topic deleted successfully.");
+    } else {
+        return crow::response(403, "You are not the owner of this topic or it doesn't exist.");
+    }
+  });
+  
+  // delete queue endpoint
+  CROW_ROUTE(app, "/deleteQueue").methods("POST"_method)([&queueManager](const crow::request& req) {
+    auto body = crow::json::load(req.body);
+
+    if (!body || body["queue_name"].t() != crow::json::type::String || body["user"].t() != crow::json::type::String) {
+        return crow::response(400, "Invalid request body. 'queue_name' and 'user' are required.");
+    }
+
+    std::string queue_name = body["queue_name"].s();
+    std::string user = body["user"].s();
+
+    if (queueManager.deleteQueue(queue_name, user)) {
+        return crow::response(200, "Queue deleted successfully.");
+    } else {
+        return crow::response(403, "Queue deletion failed. You may not be the owner or the queue does not exist.");
+    }
+  });
+
+  // list queues endpoint
+  CROW_ROUTE(app, "/queues").methods("GET"_method)([&queueManager](const crow::request& req) {
+    try {
+        auto queues = queueManager.listQueues();
+        crow::json::wvalue res;
+        res["queues"] = crow::json::wvalue::list(queues.begin(), queues.end());
+        return crow::response(200, res);
+    } catch (const std::exception& e) {
+        return crow::response(500, e.what());
+    }
+  });
 
 
   app.port(port).multithreaded().run();

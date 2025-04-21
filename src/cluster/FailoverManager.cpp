@@ -14,6 +14,7 @@ FailoverManager::FailoverManager(const std::string &self,
 
   peerStatus[selfAddress] = true;
   failureCounts[selfAddress] = 0;
+  joinTimestamps[selfAddress] = std::chrono::system_clock::now();
 
   for (const auto &addr : peerAddresses) {
     failureCounts[addr] = 0;
@@ -86,17 +87,23 @@ bool FailoverManager::pingPeer(const std::string &address) {
 }
 
 std::string FailoverManager::calculateLeader() {
-  std::string leader;
+    std::string leader;
+    std::chrono::system_clock::time_point earliest;
 
-  for (const auto &[addr, alive] : peerStatus) {
-    if (alive && (leader.empty() || addr < leader)) {
-      leader = addr;
+    for (const auto& [addr, alive] : peerStatus) {
+        if (alive) {
+            auto it = joinTimestamps.find(addr);
+            if (it != joinTimestamps.end()) {
+                if (leader.empty() || it->second < earliest) {
+                    leader = addr;
+                    earliest = it->second;
+                }
+            }
+        }
     }
-  }
 
-  std::cout << "[Failover] 🔍 Candidato a líder: "
-            << (leader.empty() ? "Ninguno" : leader) << std::endl;
-  return leader;
+    std::cout << "[Failover] 🔍 Candidato a líder: " << (leader.empty() ? "Ninguno" : leader) << std::endl;
+    return leader;
 }
 
 void FailoverManager::onLeaderChange(const std::string &newLeader) {
@@ -140,15 +147,26 @@ void FailoverManager::syncRecoveredPeer(const std::string &peer) {
   }
 }
 
-void FailoverManager::addPeerAddress(const std::string &address) {
-  std::lock_guard<std::mutex> lock(statusMutex);
+void FailoverManager::addPeerAddress(const std::string &message) {
+    std::lock_guard<std::mutex> lock(statusMutex);
 
-  if (std::find(peerAddresses.begin(), peerAddresses.end(), address) ==
-      peerAddresses.end()) {
-    peerAddresses.push_back(address);
-    peerStatus[address] = true;
-    failureCounts[address] = 0;
-    std::cout << "[Failover] 🚀 Nodo añadido dinámicamente: " << address
-              << std::endl;
-  }
+    auto delimPos = message.find('|');
+    if (delimPos == std::string::npos) return;
+
+    std::string address = message.substr(0, delimPos);
+    std::string timestampStr = message.substr(delimPos + 1);
+
+    if (std::find(peerAddresses.begin(), peerAddresses.end(), address) == peerAddresses.end()) {
+        peerAddresses.push_back(address);
+        peerStatus[address] = true;
+        failureCounts[address] = 0;
+
+        std::tm tm{};
+        std::istringstream ss(timestampStr);
+        ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+        auto tp = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+        joinTimestamps[address] = tp;
+
+        std::cout << "[Failover] 🚀 Nodo añadido: " << address << " | Timestamp: " << timestampStr << std::endl;
+    }
 }
