@@ -124,5 +124,53 @@ make -j
 ````
 This command will compile the project and generate the executable in the build folder.
 
+
 ## Execute the project
+
+Before running the project, follow these steps:
+
+### Create the environment configuration file
+
+You must create a file named `src/config.env` containing the environment variables required for the database connection and JWT secret. Here is an example:
+
+```env
+# File: src/config.env
+JWT_SECRET=ncodinvpdinpqo84h3n0
+DB_CONNECTION=postgresql://ubuntu:+Juanz2314@localhost:5432/testDatabase
+```
+### Install PostgreSQL:
+```bash
+sudo apt update && sudo apt install -y postgresql
+```
+
+### Create PostgreSQL user and database:
+
+````bash
+
+sudo -u postgres psql -c "CREATE USER ubuntu WITH PASSWORD '+Juanz2314';"
+
+sudo -u postgres psql -c "ALTER USER ubuntu WITH SUPERUSER CREATEDB CREATEROLE;"
+
+sudo -u postgres psql -c "CREATE DATABASE testDatabase OWNER ubuntu;"
+
+sudo -u postgres psql -d testDatabase -c "CREATE TABLE users (id SERIAL PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, password_hash TEXT NOT NULL);"
+````
+
+### Configure PostgreSQL authentication:
+
+````bash
+sudo -sed -i 's/^local\s\+all\s\+all\s\+peer/local all all md5/' /etc/postgresql/*/main/pg_hba.conf
+sudo systemctl restart postgresql
+````
+
+### Running the server 
+Execute the compiled binary with the required parameters. Basic usage:
+````bash
+./mom <grpc_port> [rest_port] [peer1] [peer2] ... [--host <port>] [--announce <host_ip>]
+````
+
+Examples:
+````bash
+./mom 50051 8080 peer1:50051 peer2:50052 --host 192.168.1.100 --announce 192.168.1.100
+````
 
