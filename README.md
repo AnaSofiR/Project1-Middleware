@@ -137,7 +137,7 @@ This file provides the database connection string and JWT secret - essential for
 ```env
 # File: src/config.env
 JWT_SECRET=ncodinvpdinpqo84h3n0
-DB_CONNECTION=postgresql://ubuntu:+Juanz2314@localhost:5432/testDatabase
+DB_CONNECTION=postgresql://ubuntu:+Juanz2314@localhost:5432/testdatabase
 ```
 ### Install PostgreSQL:
 PostgreSQL installation provides the database backend required for the MOM system to store user credentials and queue metadata.
